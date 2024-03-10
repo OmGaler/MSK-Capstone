@@ -1,8 +1,11 @@
+import sys
 import os
 import random
 import zipfile
+import nibabel as nib 
+import numpy as np
 
-def modify_segmentation_file(seg_file_pat):
+def modify_segmentation_file(seg_file_path):
     # load the image
     img = nib.load(seg_file_path)
     # get the image data
@@ -20,37 +23,40 @@ def modify_segmentation_file(seg_file_pat):
     # save the image
     return modified_img
 
-# Set the directory path
-dir_path = '/Users/ephraimmeiri/gitEtc/nnUNet/resized1/all_cases'
+def create_random_files_zip(input_dir, output_zip):
+    # Get a list of all subdirectories in the input directory
+    subdirs = [os.path.join(input_dir, d) for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
 
-# Get a list of all files in the directory
-# all_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path)]
-subdirs   = [os.path.join(dir_path, d) for d in os.listdir(dir_path) if os.path.isdir(os.path.join(dir_path, d))]
+    # Select random subdirectories
+    random_dirs = random.sample(subdirs, min(100, len(subdirs)))
 
-print(len(subdirs))
-# Select 100 random files
-random_dirs = random.sample(subdirs, 100)
+    # Create a zip file
+    with zipfile.ZipFile(output_zip, 'w') as zip_file:
+        # Add the selected files to the zip file
+        for dir in random_dirs:
+            for root, dirs, files in os.walk(dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, input_dir)
+                    if file.split(".")[-2] == "segmentation":
+                        # Modify segmentation file
+                        modified_img = modify_segmentation_file(file_path)
+                        with io.BytesIO() as buffer:
+                            nib.save(modified_img, buffer)
+                            buffer.seek(0)
+                            zip_file.writestr(arcname, buffer.read())
+                    else:
+                        zip_file.write(file_path, arcname)
 
-# Create a zip file
-zip_filename = '/Users/ephraimmeiri/gitEtc/nnUNet/resized1/random_files.zip'
-with zipfile.ZipFile(zip_filename, 'w') as zip_file:
-    # Add the selected files to the zip file
-    for dir in random_dirs:
-        for root, dirs, files in os.walk(dir):
-            case= root.split('/')[-1]
-            print(case)
-            for file in files:
-                # print()
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, dir_path)
-                if(file.split(".")=="segmentation"):
-                    modified_img= modify_segmentation_file(file_path)
-                    with io.BytesIO() as buffer:
-                        nib.save(modified_img, buffer)
-                        buffer.seek(0)
-                        zip_file.writestr(arcname, buffer.read())
-                else:   
-                    zip_file.write(file_path,arcname)
+    print(f'Created {output_zip} with {min(100, len(subdirs))} random files from {input_dir}')
 
-print(f'Created {zip_filename} with 100 random files from {dir_path}')
 
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python script.py input_directory output_zip")
+        sys.exit(1)
+    
+    input_dir = sys.argv[1]
+    output_zip = sys.argv[2]
+    
+    create_random_files_zip(input_dir, output_zip)
