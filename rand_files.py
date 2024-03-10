@@ -9,13 +9,14 @@ def modify_segmentation_file(seg_file_pat):
     data = img.get_fdata()
 
     # Round the labels
-    rounded_data = np.round(data).astype(np.uint8)
+    rounded_data = np.rint(data).astype(np.uint8)
 
-    # change any pixel with a value of 3 to a 1
-    data[data == 3] = 1
-    
+    # Set all tumor labels (2) to 1 and everything else to 0
+    # (have labels for only tumour vs no tumour)
+    rounded_data[rounded_data != 2] = 0
+    rounded_data[rounded_data == 2] = 1
     # create the new image
-    modified_img = nib.Nifti1Image(data, img.affine, img.header)
+    modified_img = nib.Nifti1Image(rounded_data, img.affine, img.header)
     # save the image
     return modified_img
 
